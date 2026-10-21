@@ -86,6 +86,19 @@ test("normalizePhone accepts local Czech numbers", () => {
   assert.throws(() => normalizePhone("123"), /české nebo slovenské/);
 });
 
+test("parseEditableForm keeps fields after a div that would close the form in a browser parser", () => {
+  const formHtml = `
+    <form name="formpridani" action="/insert.php">
+      <input name="nadpis" value="Starý">
+      </div>
+      <input name="jmeno" value="Dominik">
+      <input type="hidden" name="idad" value=225345720>
+    </form>`;
+  const form = parseEditableForm(formHtml, "https://auto.bazos.cz/deletei2.php");
+  assert.equal(form?.fields.find((field) => field.name === "jmeno")?.value, "Dominik");
+  assert.equal(form?.fields.find((field) => field.name === "idad")?.value, "225345720");
+});
+
 test("parseEditableForm keeps hidden fields and selected price", () => {
   const formHtml = `
     <form action="/insert.php" method="post">
@@ -104,9 +117,9 @@ test("parseEditableForm keeps hidden fields and selected price", () => {
     [
       ["token", "abc"],
       ["nadpis", "Starý"],
+      ["podminky", "1"],
       ["popis", "Text"],
       ["cenavyber", "3"],
-      ["podminky", "1"],
     ],
   );
   assert.equal(optionValueByLabel(formHtml, "cenavyber", ["dohodou"]), "3");

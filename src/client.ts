@@ -296,11 +296,20 @@ export class BazosClient {
     if (input.image_paths?.length) {
       const uploaded = await this.uploadImages(target.origin, input.image_paths);
       fields.set("files[]", uploaded);
+    } else {
+      const existingFiles = [...html.matchAll(/mockFile = \{ name: "([^"]+)"/g)].map((match) => match[1]);
+      const hasPhotos = /\/img\/\d+t\//.test(html);
+      if (hasPhotos && existingFiles.length === 0) {
+        return { ok: false, ad_id: target.id, message: "Úpravu jsem neodeslal, nešly zachovat stávající fotky." };
+      }
+      if (existingFiles.length) fields.set("files[]", existingFiles);
     }
+    if (!fields.has("Submit")) fields.set("Submit", ["Odeslat"]);
 
     const resultHtml = await this.postForm(form.action, fields);
     const message = pageNotice(resultHtml);
-    return { ok: /byl uložen|byl upraven|byl změněn/i.test(message), ad_id: target.id, message };
+    const ok = /inzerát byl vložen|inzerát byl změněn|inzerát byl upraven/i.test(message);
+    return { ok, ad_id: target.id, message };
   }
 
   async deleteAd(input: { url?: string; section?: string; ad_id?: string; password: string }): Promise<Record<string, unknown>> {

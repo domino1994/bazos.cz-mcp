@@ -163,39 +163,55 @@ export interface HtmlForm {
   fields: Array<{ name: string; value: string }>;
 }
 
-export function parseEditableForm(html: string, pageUrl: string): HtmlForm | null {
-  const $ = cheerio.load(html);
-  const form = $("form")
-    .filter((_, element) => {
-      const node = $(element);
-      return node.find("[name=nadpis], #popis, textarea[name=popis]").length > 0;
-    })
-    .first();
-  if (!form.length) return null;
+function attr(tag: string, name: string): string | undefined {
+  const match = new RegExp(`${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`, "i").exec(tag);
+  return match?.[1] ?? match?.[2] ?? match?.[3];
+}
 
-  const action = new URL(form.attr("action") || pageUrl, pageUrl).toString();
+function decodeHtml(value: string): string {
+  return value
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;|&apos;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">");
+}
+
+export function parseEditableForm(html: string, pageUrl: string): HtmlForm | null {
+  const formMatch = html.match(/<form\b[^>]*\bname=["']formpridani["'][^>]*>[\s\S]*?<\/form>/i)
+    ?? html.match(/<form\b[^>]*>[\s\S]*?\bname=["']nadpis["'][\s\S]*?<\/form>/i);
+  if (!formMatch) return null;
+
+  const slice = formMatch[0];
+  const open = slice.match(/^<form\b[^>]*>/i)?.[0] ?? "";
+  const action = new URL(attr(open, "action") || pageUrl, pageUrl).toString();
   const fields: Array<{ name: string; value: string }> = [];
 
-  form.find("input, textarea, select").each((_, element) => {
-    const node = $(element);
-    const name = node.attr("name");
-    if (!name) return;
-    const type = (node.attr("type") || node.prop("tagName") || "").toString().toLowerCase();
-    if (type === "file" || type === "submit" || type === "image" || type === "button") return;
-    if ((type === "checkbox" || type === "radio") && node.attr("checked") === undefined) return;
+  for (const match of slice.matchAll(/<input\b[^>]*>/gi)) {
+    const tag = match[0];
+    const name = attr(tag, "name");
+    const type = (attr(tag, "type") || "text").toLowerCase();
+    if (!name || ["file", "submit", "image", "button"].includes(type)) continue;
+    if ((type === "checkbox" || type === "radio") && !/\bchecked\b/i.test(tag)) continue;
+    fields.push({ name, value: decodeHtml(attr(tag, "value") ?? "") });
+  }
 
-    if (node.is("select")) {
-      const selected = node.find("option[selected]").attr("value") ?? node.find("option").first().attr("value") ?? "";
-      fields.push({ name, value: selected });
-      return;
-    }
-    if (node.is("textarea")) {
-      fields.push({ name, value: node.text() });
-      return;
-    }
-    fields.push({ name, value: node.attr("value") ?? "" });
-  });
+  for (const match of slice.matchAll(/<textarea\b([^>]*)>([\s\S]*?)<\/textarea>/gi)) {
+    const name = attr(match[1], "name");
+    if (!name) continue;
+    fields.push({ name, value: decodeHtml(match[2]) });
+  }
 
+  for (const match of slice.matchAll(/<select\b([^>]*)>([\s\S]*?)<\/select>/gi)) {
+    const name = attr(match[1], "name");
+    if (!name) continue;
+    const options = [...match[2].matchAll(/<option\b[^>]*>/gi)].map((option) => option[0]);
+    const selected = options.find((option) => /\bselected\b/i.test(option)) ?? options[0];
+    fields.push({ name, value: selected ? decodeHtml(attr(selected, "value") ?? "") : "" });
+  }
+
+  if (!fields.some((field) => field.name === "nadpis" || field.name === "popis")) return null;
   return { action, fields };
 }
 
