@@ -1,0 +1,10 @@
+node_modules/
+dist/
+*.log
+.env
+.env.*
+.session/
+data/
+*.tsbuildinfo
+.cursor/
+.DS_Store
