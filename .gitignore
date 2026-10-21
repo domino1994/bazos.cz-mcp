@@ -5,6 +5,7 @@ dist/
 .env.*
 .session/
 data/
+inzeraty/
 *.tsbuildinfo
 .cursor/
 .DS_Store

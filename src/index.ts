@@ -236,7 +236,7 @@ server.registerTool(
   {
     title: "Vložit inzerát",
     description:
-      "Vloží nový inzerát do zvolené rubriky. Vyžaduje ověřenou session. Před prvním inzerátem může Bazoš chtít propojení telefonu s účtem platbou 1 Kč — to se dělá na webu, tenhle nástroj to neudělá. Fotky jsou cesty k souborům na počítači, kde server běží.",
+      "Vloží nový inzerát do zvolené rubriky. Vyžaduje ověřenou session. Před prvním inzerátem může Bazoš chtít propojení telefonu s účtem platbou 1 Kč — to se dělá na webu, tenhle nástroj to neudělá. Fotky jsou image_paths: absolutní cesty k souborům na počítači, kde server běží, v pořadí nahrání. První je hlavní. Tilda v cestě se nerozbalí.",
     inputSchema: {
       section: z.string().describe("Rubrika, například PC."),
       category_id: z.string().describe("Číselné id kategorie z list_categories."),
@@ -249,7 +249,10 @@ server.registerTool(
       phone: z.string().describe("Telefon zobrazený v inzerátu."),
       email: z.string(),
       password: z.string().describe("Heslo pro pozdější úpravu a smazání. Neukládá se."),
-      image_paths: z.array(z.string()).optional(),
+      image_paths: z
+        .array(z.string())
+        .optional()
+        .describe("Absolutní cesty k fotkám v pořadí nahrání. První je hlavní. Bez pole se vloží inzerát bez fotek."),
     },
   },
   async (input) => {
@@ -265,7 +268,8 @@ server.registerTool(
   "update_ad",
   {
     title: "Upravit inzerát",
-    description: "Otevře úpravu inzerátu heslem, které bylo zadáno při vložení, a odešle změněné údaje. Zadej url, nebo section a ad_id.",
+    description:
+      "Otevře úpravu inzerátu heslem, které bylo zadáno při vložení, a odešle změněné údaje. Zadej url, nebo section a ad_id. Bez image_paths zůstanou stávající fotky. S image_paths se celá sada fotek nahradí nahranými soubory.",
     inputSchema: {
       url: z.string().optional(),
       section: z.string().optional(),
@@ -279,7 +283,10 @@ server.registerTool(
       name: z.string().optional(),
       phone: z.string().optional(),
       email: z.string().optional(),
-      image_paths: z.array(z.string()).optional(),
+      image_paths: z
+        .array(z.string())
+        .optional()
+        .describe("Absolutní cesty k novým fotkám. Když pole chybí, stávající fotky zůstanou. Když je vyplněné, nahradí celou sadu."),
     },
   },
   async (input) => {
